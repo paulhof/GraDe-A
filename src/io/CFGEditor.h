@@ -19,37 +19,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef IMPORT_CFGEDITOR_H_
 #define IMPORT_CFGEDITOR_H_
 #include "../GradeA_Defs.h"
-#include "../io/FileEditor.h"
-#include "../io/FileImporter.h"
-class CFGHeaderData {
-public:
-	CFGHeaderData(){};
-	~CFGHeaderData(){};
-	void parse(FileEditor * editor);
-	long getNumLines() const {
-		return numLines;
-	}
-	long getNumParticles() const {
-		return numParticles;
-	}
-	int getNumAuxFields() const;
-	std::string getAuxField(int fieldNum) const;
-	bool containsVelFields() const;
-	bool isExtendedFormat() const {
-		return extendedFormat;
-	}
-
-private:
-	long numLines = 0;
-	long numParticles = 0;
-	double unitMultiplier = 1.;
-	Matrix3 H0;
-	Matrix3 transform;
-	double rateScale = 1.;
-	bool extendedFormat = false;
-	bool containsVelocities = false;
-	std::vector<std::string> auxFields;
-};
+#include "FileEditor.h"
+#include "FileImporter.h"
+#include "CFGHeaderData.h"
 
 class CFGEditor {
 public:

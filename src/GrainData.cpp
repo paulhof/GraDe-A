@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "GrainData.h"
 
 GrainData::GrainData(double* inCenter, double * inQuaternion, long inNumAtoms,	gID inAssignedId ,
-		 long inNumRegularAtoms, long inNumOrphanAtoms, double inOrientationSpread ) {
+		 long inNumRegularAtoms, long inNumOrphanAtoms, double inOrientationSpread, const std::vector<double> & properties) {
 	center[0] = inCenter[0];
 	center[1] = inCenter[1];
 	center[2] = inCenter[2];
@@ -29,6 +29,7 @@ GrainData::GrainData(double* inCenter, double * inQuaternion, long inNumAtoms,	g
 	numOrphanAtoms = inNumOrphanAtoms;
 	numRegularAtoms = inNumRegularAtoms;
 	orientationSpread = inOrientationSpread;
+	meanProperties = properties;
 }
 
 GrainData::GrainData(const Grain *inGrain)
@@ -42,6 +43,7 @@ GrainData::GrainData(const Grain *inGrain)
 	numOrphanAtoms = inGrain->getNumberOfOrphanAtoms();
 	assignedId = inGrain->getAssignedId();
 	orientationSpread = inGrain->orientationSpread();
+	meanProperties = inGrain->getProperties();
 }
 
 GrainData::~GrainData() {
@@ -94,4 +96,8 @@ void GrainData::setMisOrientation(const Orientation* initOrientation) {
 
 void GrainData::setDistanceToInit(double inDistance) {
 	distanceToInit = inDistance;
+}
+
+const std::vector<double>& GrainData::getProperties() const {
+	return meanProperties;
 }

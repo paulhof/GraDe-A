@@ -34,10 +34,17 @@ void OrientatorFileQueue::init(std::string inSubDirectoryName, std::string inFil
 
 void OrientatorFileQueue::initByWildcard(std::string inWildCard, int inStartFileNum, int inEndFileNum)
 {
+	if (inWildCard.find_first_of("'\"") == 0) {
+		inWildCard = inWildCard.substr(1);
+	}
+	if (inWildCard.find_last_of("'\"") == inWildCard.length()-1) {
+		inWildCard = inWildCard.substr(0,inWildCard.length()-1);
+	}
 	startFileNum = inStartFileNum;
 	endFileNum = inEndFileNum;
 	size_t dirPos;
-	dirPos = inWildCard.rfind(DIRCHAR);
+	std::string dirString = {DIRCHAR};
+	dirPos = inWildCard.rfind(dirString);
 	std::string fileNameWildCard;
 	if(dirPos == std::string::npos) {
 		subDirectoryName = ".";
@@ -63,8 +70,10 @@ void OrientatorFileQueue::setFileFixByFileWildcard(std::string inFileWildCard)
 	fileNamePreFix = inFileWildCard.substr(0,idPos);
 	fileNamePostFix = inFileWildCard.substr(idPos+1, std::string::npos);
 	decomposePostFix(fileNamePostFix);
-	if (fileNamePostFix.back() == '_' ){
-			preSeparator = "";
+	if (fileNamePostFix.length() > 0){
+		if (fileNamePostFix.back() == '_' ){
+				preSeparator = "";
+		}
 	}
 }
 
@@ -143,7 +152,7 @@ std::string OrientatorFileQueue::previousFileName() const{
 	if (curFileNum == 0 ){
 		return "";
 	}
-	subDirectoryName + fileNamePreFix + fileNameIds[curFileNum-1] + fileNamePostFix + fileNameEnding;
+	return subDirectoryName + fileNamePreFix + fileNameIds[curFileNum-1] + fileNamePostFix + fileNameEnding;
 }
 
 int OrientatorFileQueue::numFiles() const {
@@ -226,6 +235,22 @@ FileNameID OrientatorFileQueue::fileId(std::string fileNameIdString) const{
 std::vector<std::string> OrientatorFileQueue::filesInDirectory(std::string dirName)
 {
 	std::vector<std::string> fileNameList;
+#ifdef _MSC_VER
+	//Windows API needs asterisk at the end of dirName
+	if(dirName.size() > 0) {
+		if (dirName.back() == DIRCHAR){
+			dirName.push_back('*');
+		}
+	}
+	HANDLE findHandle;
+	WIN32_FIND_DATA FindFileData;
+	if((findHandle = FindFirstFile(dirName.c_str(), &FindFileData)) != INVALID_HANDLE_VALUE){
+	    do{
+	    	fileNameList.push_back(FindFileData.cFileName);
+	    } while(FindNextFile(findHandle, &FindFileData));
+	    FindClose(findHandle);
+	}
+#else
 	DIR *dir;
 	struct dirent *ent;
 	if ((dir = opendir (dirName.c_str())) != nullptr) {
@@ -234,6 +259,8 @@ std::vector<std::string> OrientatorFileQueue::filesInDirectory(std::string dirNa
 	 }
 	  closedir (dir);
 	}
+
+#endif
 	return fileNameList;
 }
 

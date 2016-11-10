@@ -29,6 +29,7 @@ ContainerData::ContainerData(AtomContainer * con) {
 		grains.push_back(con->getGrain(iG));
 	}
 	periodic = con->isPeriodic();
+	con->getAtomPropertyNames(propertyNames, false);
 }
 
 ContainerData::~ContainerData() {
@@ -136,4 +137,12 @@ gID ContainerData::maxGrainId() const {
 		}
 	}
 	return maxGrainId;
+}
+
+void ContainerData::getAtomPropertyNames(std::vector<std::string> & outProperties) const{
+ outProperties = propertyNames;
+}
+
+void ContainerData::setAtomPropertyNames(const std::vector<std::string>& inProperties) {
+ propertyNames = inProperties;
 }

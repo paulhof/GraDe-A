@@ -44,8 +44,8 @@ namespace GrainCSVFile {
 	public:
 		Format();
 		virtual ~Format();
-		bool isRightFormat(CSVTableReader * csvTable) const;
-		bool init(CSVTableReader * csvTable, ContainerData * data) const;
+		bool isRightFormat(const CSVTableReader * csvTable) const;
+		bool init(const CSVTableReader * csvTable, ContainerData * data) const;
 		void prepareTable (CSVTableWriter * writer) const;
 		void fillTable(CSVTableWriter * csvTable, const ContainerData * container, const CubicLattice & material) const;
 		void fillTable(CSVTableWriter * csvTable, const AtomContainer * container, const CubicLattice & material) const;

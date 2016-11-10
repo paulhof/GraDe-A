@@ -23,13 +23,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "GradeA_Defs.h"
 #include "Atom.h"
 #include "Orientation.h"
+
+#ifdef USE_ARMADILLO
 #include <armadillo>
+#else//use Eigen library
+#include <Eigen/Eigenvalues>
+#endif
+
 #include "io/CSVTableWriter.h"
 typedef double * doubleP;
-typedef struct{
-	long iB;
-	long iA;
-}AtomID;
 class Atom;
 class AtomBox;
 class MeanOrientation;
@@ -41,7 +43,11 @@ public:
 	Orientator(AtomBox * boxes, unsigned long initCapacity);
 	virtual ~Orientator();
 	oID orientateFCC(double * neighborPositions, unsigned char nNextNeighbors);
+#ifdef USE_ARMADILLO
 	oID closestOrientation (arma::mat  & m3x3);
+#else //use Eigen library
+	oID closestOrientation (Eigen::Matrix3d  & m3x3);
+#endif
 	oID closestOrientation (const double * M);
 	long getNumOrientations() const;
 	void matrixToClosestQuaternion (const double * M, double * q);

@@ -24,12 +24,13 @@ AtomBox::AtomBox() {
 	atoms = nullptr;
 	neighbors = nullptr;
 	size = nullptr;
+	sizeLinked = false;
 }
 
-void AtomBox::init(double * inOrigin, double * inSize, ABoxNeighbor * inNeighbors, long inNumNeighbors, bool inSizeLinked){
+void AtomBox::init(const double * inOrigin, const double * inSize, const ABoxNeighbor * inNeighbors, long inNumNeighbors, bool inSizeLinked){
 	sizeLinked = inSizeLinked;
 	if (sizeLinked){
-		size = inSize;
+		size = (double*) inSize;
 	} else {
 		size = new double [DIM];
 		for (long i = 0; i < DIM; i++){
@@ -87,7 +88,7 @@ void AtomBox::obtainGlobalAtomPos(long atomId, double * outPos) const{
 	outPos[2] = origin[2] + relPos[2];
 }
 
-void AtomBox::calculateAtomOrientationsFCC(long boxId, double angleThreshold, Orientator * orient, const double rSqrMin, const double rSqrMax){
+void AtomBox::calculateAtomOrientationsFCC(double angleThreshold, Orientator * orient, const double rSqrMin, const double rSqrMax){
 	unsigned char nAtomNeighbors;
 	double atomNborPositions[12*DIM];
 	Atom * atom;
@@ -345,11 +346,11 @@ void AtomBox::srtNeighbors(){
 	std::sort(neighbors, neighbors + nNeighbors, sortDistAscending);
 }
 
-double * AtomBox::getOrigin(){
+const double * AtomBox::getOrigin() const{
 	return origin;
 }
 
-double * AtomBox::getSize(){
+const double * AtomBox::getSize() const{
 	return size;
 }
 
@@ -367,4 +368,8 @@ ABoxNeighbor * AtomBox::getNeighbors(){
 
 double AtomBox::sqrDist(const double * p1,const double * p2) const{
 	return SQR(p1[0] - p2[0]) + SQR(p1[1] - p2[1]) + SQR(p1[2] - p2[2]);
+}
+
+long AtomBox::getAtomNum(const Atom* atom) const {
+	return atom - atoms;
 }

@@ -19,7 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "ComputationManager.h"
 #include "CubicLattices.h"
 
-
 #if !defined(WINDOWS) || defined(CYGWIN)
 #include <sys/stat.h>
 #define mkdir(x) mkdir(x,0777);
@@ -43,7 +42,7 @@ ComputationManager::ComputationManager(bool inPeriodic, double latticeParameter,
 }
 
 void ComputationManager::run(std::string fileNameWildCard, std::string inInitGrainFileName, int startFileNum, int endFileNum) {
-#ifdef MSVC
+#ifdef _MSC_VER
 	std::cout << "This is the MSVC version" << std::endl;
 #endif
 	initGrainFileName = inInitGrainFileName;
@@ -158,9 +157,19 @@ void ComputationManager::runSingleFile(int fileNum) {
 	//---------------------------------------------------------------------
 	//MAIN EXECUTION:
 
+#pragma omp critical
+{
+	std::cout << "Thread " << omp_get_thread_num() << ": Orientation Calculation started. " << std::endl;
+}
 	//analyze the dataset
 	//atom-wise orientation calculation
 	container->calculateAtomOrientations(NN_searchRadiusSqrMin, NN_searchRadiusSqrMax);
+#pragma omp critical
+{
+	std::cout << LINE << "\n"
+	<<"Thread " << omp_get_thread_num() <<": Orientation Calculation Done (1/3)\n"
+	<< LINE <<std::endl;
+}
 	//print orientations
 	if( printOrientations){
 		std::cout << "Writing orientation csv file: " << queue.outOrientationCsvFileName(fileNum) << " for " << container->getNumOrientations() << " orientations" << std::endl;
@@ -169,8 +178,17 @@ void ComputationManager::runSingleFile(int fileNum) {
 		delete oriPrinter;
 	}
 	//grain identification
+#pragma omp critical
+{
+	std::cout << "Thread " << omp_get_thread_num() << ": Grain Identification started." << std::endl;
+}
 	container->identifyGrains(grainAngularThreshold, NN_searchRadiusSqrMin, NN_searchRadiusSqrMax);
-
+#pragma omp critical
+{
+	std::cout << LINE << "\n"
+	<<"Thread " << omp_get_thread_num() <<": Grain Identification Done (2/3)\n"
+	<< LINE <<std::endl;
+}
 	//---------------------------------------------------------------------
 	//OUTPUT:
 	//write the atom data into a cfg file
@@ -205,33 +223,27 @@ ComputationManager::~ComputationManager() {
 
 void ComputationManager::writeCfgFile(std::string fileName) {
 	AtomIO output;
-	if(!output.openCfgFile(fileName,'w')){
+	if(!output.openCfgFile(fileName)){
 		//opening failed
 		return;
 	}
-	std::string oidName[4] = {"box","atomId","oId","gId"};
-	output.writeCfgFileHeader(container->getSize(),container->getNumAtoms(),4,oidName, material->getName());
+	std::vector<std::string> propertyNames;
+	container->getAtomPropertyNames(propertyNames);
+	std::vector<std::string> grainAvgPropertyNames;
+	container->getGrainAvgPropertyNames(propertyNames);
+	//append the average-propertynames to propertynames
+	propertyNames.insert(propertyNames.end(),grainAvgPropertyNames.begin(),grainAvgPropertyNames.end());
 	long nAtoms = container->getNumAtoms();
-	oID * oIds = new long [nAtoms];
-	oID * grainIds = new long [nAtoms];
-	long * boxIds = new long[nAtoms];
-	long * atomIds = new long[nAtoms];
-	double * atomPositions = new double[nAtoms * DIM];
-	container->receiveAtomData(atomPositions,boxIds,atomIds, oIds, grainIds);
+	output.writeCfgFileHeader(container->getSize(), nAtoms, propertyNames.size(), propertyNames.data(), material->getName());
+	std::vector<std::string> atomsProperties;
+
+	double pos[DIM];
 	for(long iA = 0; iA < nAtoms; iA++){
-		output.writeCfgAtomPos(atomPositions + iA * DIM);
-		output.writeCfgAux(boxIds[iA]);
-		output.writeCfgAux(atomIds[iA]);
-		output.writeCfgAux(oIds[iA]);
-		output.writeCfgAux(grainIds[iA]);
-		output.writeCfgLineBreak();
+		container->getAtomsPosition(iA, pos);
+		container->getAtomsProperties(iA, atomsProperties);
+		output.appendAtomToCfgFile(pos, atomsProperties);
 	}
-		output.closeOutCfgFile();
-		delete [] grainIds;
-		delete [] oIds;
-		delete [] boxIds;
-		delete [] atomIds;
-		delete [] atomPositions;
+	output.closeCfgFile();
 }
 
 void ComputationManager::writeCsvTableFile(std::string fileName) {

@@ -19,7 +19,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef ORIENTATORFILEQUEUE_H_
 #define ORIENTATORFILEQUEUE_H_
 #include "GradeA_Defs.h"
-#include <dirent.h>
+#ifdef _MSC_VER
+	#include <windows.h>
+#else
+	#include <dirent.h>
+#endif
 
 typedef struct {
 	std::string prefix;

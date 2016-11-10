@@ -79,10 +79,10 @@ public:
 	double * getPosition();
 	long getAtomId();
 private:
-	AtomBox * box;
+	double position[DIM];
 	long atomId;
-	double position[3];
 	bool active;
+	AtomBox * box;
 	Atom * parent;
 };
 

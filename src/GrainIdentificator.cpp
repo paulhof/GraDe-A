@@ -39,7 +39,6 @@ GrainIdentificator::~GrainIdentificator() {
 }
 
 long GrainIdentificator::run(double angularThreshold) {
-	std::cout << "Thread " << omp_get_thread_num() << ": Grain Identification started." << std::endl;
 	//for all atoms run the recursive engine
 	AtomBox * box;
 	long iA;
@@ -63,12 +62,6 @@ long GrainIdentificator::run(double angularThreshold) {
 	}
 	deleteLastGrain();
 	calculateOrientationSpread();
-#pragma omp critical
-{
-	std::cout << LINE << "\n"
-	<<"Thread " << omp_get_thread_num() <<": Grain Identification Done (2/3)\n"
-	<< LINE <<std::endl;
-}
 	return grains.size();
 }
 
@@ -96,7 +89,11 @@ void GrainIdentificator::setSearchRadiiSquared(double inRsqrMin, double inRsqrMa
 }
 
 Grain * GrainIdentificator::getGrain(gID grainID) {
-	return grains.at(grainID);
+	if (grainID >= 0) {
+		return grains[grainID];
+	} else {
+		return nullptr;
+	}
 }
 
 long GrainIdentificator::getNumGrains() {
@@ -190,7 +187,7 @@ void GrainIdentificator::orphanAtomAssignAttempt(std::vector<AtomID> & unassigne
 	Atom * atom;
 	Atom * nborAtom;
 	unsigned char nNeighbors;
-	Atom * neighbors[nMaxAtomNeighbors];
+	Atom ** neighbors = new Atom * [nMaxAtomNeighbors];
 	Occurrence maxGrainOcc;
 	for (long iA = 0; iA < unassignedAtoms.size(); iA++) {
 		//don't check already assigned atoms
@@ -220,7 +217,7 @@ void GrainIdentificator::orphanAtomAssignAttempt(std::vector<AtomID> & unassigne
 		isUnassigned[iA] = false;
 		numUnAssignedAtoms--;
 	}
-
+	delete [] neighbors;
 }
 //!\brief Sorts a given atom-set by ascending grain-id and finds the grain, which occurs most frequently.
 //!\param[in,out] atomSet pointer to list of atom-pointers
@@ -427,6 +424,9 @@ void RecursiveGrainIdentificationEngine::cleanupCandidatesMem() {
 
 GrainCandidate::GrainCandidate() {
 	active = false;
+	parent = nullptr;
+	box = nullptr;
+	atomId = -1;
 }
 
 GrainCandidate::GrainCandidate(AtomBox *inBox, long inAtomId, double *inPos) {

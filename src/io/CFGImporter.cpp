@@ -19,19 +19,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "../io/CFGImporter.h"
 
-struct CFGHeader {
-
-	long numParticles;
-	double unitMultiplier;
-	Matrix3 H0;
-	Matrix3 transform;
-	//FloatType rateScale;
-	double rateScale;
-	bool isExtendedFormat;
-	bool containsVelocities;
-	//QStringList auxiliaryFields;
-	void parse(TextReader * stream);
-};
+bool isNewType(const std::string & line){
+	//if a new type is introduced, the line contains only a single column
+	//<number>< \t>*<\n>
+	//        |<- trimPos
+	size_t trimPos = line.find_first_of(" \t");
+	return line.find_first_not_of(" \t",trimPos) == std::string::npos;
+}
 
 /******************************************************************************
 * Checks if the given file has format that can be read by this importer.
@@ -42,136 +36,29 @@ bool CFGImporter::checkFileFormat()
 	TextReader stream(filename);
 
 	// Read first line.
-	stream.readLine(20);
+	stream.readLine();
 	// CFG files start with the string "Number of particles".
-	if(stream.lineStartsWith("Number of particles"))
+	if(stream.lineStartsWith("Number of particles")){
 		return true;
+	}
 
 	return false;
 }
 
-/******************************************************************************
-* Parses the header of a CFG file.
-******************************************************************************/
-void CFGHeader::parse(TextReader * stream)
-{
-	numParticles = -1;
-	unitMultiplier = 1;
-	H0.setIdentity();
-	transform.setIdentity();
-	rateScale = 1;
-	isExtendedFormat = false;
-	containsVelocities = true;
-	int entry_count = 0;
 
-	while(!stream->eof()) {
-		std::string line(stream->readLine());
-		// Ignore comments
-		size_t commentChar = line.find('#');
-		if(commentChar != std::string::npos) line.resize(commentChar);
 
-		// Skip empty lines.
-		size_t trimmedLine = line.find_first_not_of(" \t\n\r");
-		if(trimmedLine == std::string::npos) continue;
-		if(trimmedLine != 0) line = line.substr(trimmedLine);
-
-		size_t splitChar = line.find('=');
-		if(splitChar == std::string::npos) {
-			if(stream->lineStartsWith(".NO_VELOCITY.")) {
-				containsVelocities = false;
-				continue;
-			}
-			break;
-		}
-
-		std::string key = line.substr(0, line.find_last_not_of(" \t\n\r", splitChar - 1) + 1);
-		size_t valuestart = line.find_first_not_of(" \t\n\r", splitChar + 1);
-		if(valuestart == std::string::npos) valuestart = splitChar+1;
-		std::string value = line.substr(valuestart);
-
-		if(key == "Number of particles") {
-			numParticles = atoi(value.c_str());
-			if(numParticles < 0 || numParticles > 1e9)
-				throw Exception("CFG file parsing error. Invalid number of atoms (line " + std::to_string(stream->getLineNumber()) + "): " + std::to_string(numParticles) + ")");
-		}
-		else if(key == "A") unitMultiplier = atof(value.c_str());
-		else if(key == "H0(1,1)") H0.set(0,0,atof(value.c_str()) * unitMultiplier);
-		else if(key == "H0(1,2)") H0.set(0,1,atof(value.c_str()) * unitMultiplier);
-		else if(key == "H0(1,3)") H0.set(0,2,atof(value.c_str()) * unitMultiplier);
-		else if(key == "H0(2,1)") H0.set(1,0,atof(value.c_str()) * unitMultiplier);
-		else if(key == "H0(2,2)") H0.set(1,1,atof(value.c_str()) * unitMultiplier);
-		else if(key == "H0(2,3)") H0.set(1,2,atof(value.c_str()) * unitMultiplier);
-		else if(key == "H0(3,1)") H0.set(2,0,atof(value.c_str()) * unitMultiplier);
-		else if(key == "H0(3,2)") H0.set(2,1,atof(value.c_str()) * unitMultiplier);
-		else if(key == "H0(3,3)") H0.set(2,2, atof(value.c_str()) * unitMultiplier);
-		else if(key == "Transform(1,1)") transform.set(0,0,atof(value.c_str()));
-		else if(key == "Transform(1,2)") transform.set(0,1,atof(value.c_str()));
-		else if(key == "Transform(1,3)") transform.set(0,2,atof(value.c_str()));
-		else if(key == "Transform(2,1)") transform.set(1,0,atof(value.c_str()));
-		else if(key == "Transform(2,2)") transform.set(1,1,atof(value.c_str()));
-		else if(key == "Transform(2,3)") transform.set(1,2,atof(value.c_str()));
-		else if(key == "Transform(3,1)") transform.set(2,0,atof(value.c_str()));
-		else if(key == "Transform(3,2)") transform.set(2,1,atof(value.c_str()));
-		else if(key == "Transform(3,3)") transform.set(2,2,atof(value.c_str()));
-		else if(key == "eta(1,1)") {}
-		else if(key == "eta(1,2)") {}
-		else if(key == "eta(1,3)") {}
-		else if(key == "eta(2,2)") {}
-		else if(key == "eta(2,3)") {}
-		else if(key == "eta(3,3)") {}
-		else if(key == "R") rateScale = atof(value.c_str());
-		else if(key == "entry_count") {
-			entry_count = atoi(value.c_str());
-			isExtendedFormat = true;
-		}
-		else if(key.compare(0, 10, "auxiliary[") == 0) {
-			isExtendedFormat = true;
-			size_t endOfName = value.find_first_of(" \t");
-		}
-		else {
-			throw Exception("Unknown key in CFG file header at line " + std::to_string(stream->getLineNumber()) + ": " + line + ")");
-		}
-	}
-	if(numParticles < 0)
-		throw Exception("Invalid file header. This is not a valid CFG file.");
-}
-
-bool isNewTypeOld(const char * inLine){
-	for(const char* line = inLine; *line != '\0'; ++line) {
-		if(*line <= ' ') {
-			//if any character is something like a ' ' or '\t'
-			for(; *line != '\0'; ++line) {
-				//from this character on go to the end
-				if(*line > ' ') {
-					//if something is different to anything like ' ', then
-					return false;
-					break;
-				}
-			}
-			break;
-		}
-	}
-	return true;
-}
-
-bool isNewTypeNew(const char * inLine){
-	std::string curLine = inLine;
-	size_t trimPos = curLine.find_first_of(" \t");
-	if(curLine.find_first_not_of(" \t",trimPos) != std::string::npos){
-		return false;
-	}
-	return true;
-}
 /******************************************************************************
 * Parses the given input file and stores the data in the given container object.
 ******************************************************************************/
 void CFGImporter::parseFile()
 {
-	CFGHeader header;
 	reader = new TextReader(filename);
 	header.parse(reader);
-	atomPositions = new double[header.numParticles*DIM];
-
+	//atomPositions = new double[header.getNumParticles()*DIM];
+	//add all corresponding auxFields
+	for(int i = 0; i < header.getNumAuxFields(); i++){
+		data->addAtomProperty(header.getAuxField(i));
+	}
 	// Create particle mass and type properties.
 	int currentAtomType = 0;
 	double currentMass = 0;
@@ -180,7 +67,7 @@ void CFGImporter::parseFile()
 		 0.,0.,0.
 		};
 		//AffineTransformation H((header.transform * header.H0).transposed());
-		transform = header.transform.multiply(&header.H0).transposed();
+		transform = header.getTransform()->multiply(header.getH0()).transposed();
 		//H.translation() = H * Vector3(-0.5f, -0.5f, -0.5f);
 		transform.multiply(trVec, translate);
 		//simulationCell().setMatrix(H);
@@ -202,45 +89,71 @@ void CFGImporter::parseFile()
 		double origin[3] = {0.,0.,0.};
 		data->setSize(size);
 		data->setOrigin(origin);
-		data->generate(header.numParticles);
+		data->generate(header.getNumParticles());
 		// Read per-particle data.
+
 	bool isFirstLine = true;
-	for(int particleIndex = 0; particleIndex < header.numParticles; ) {
-		if(!isFirstLine)
+	double position [DIM];
+	for(int particleIndex = 0; particleIndex < header.getNumParticles(); ) {
+		if(!isFirstLine) {
 			reader->readLine();
-		else
+		} else {
 			isFirstLine = false;
-
-		if(header.isExtendedFormat) {
-			bool isNewType = isNewTypeNew(reader->getLine());
-			//go for each character
-
-			std::string particleTypeName;
-			if(isNewType) {
-				// Parse mass and atom type name.
-				currentMass = atof(reader->getLine());
-				const char* line = reader->readLine();
-				while(*line != '\0' && *line <= ' ') ++line;
-				const char* line_end = line;
-				while(*line_end != '\0' && *line_end > ' '){
-					particleTypeName += *line_end;
-					++line_end;
-				}
-				continue;
-			}
 		}
-
 		try {
-			readAtomPositions(particleIndex, reader->getLine());
+			readAtom();
 			particleIndex++;
 		}
 		catch(Exception& ex) {
 			std::cerr << "Parsing error in line "  << reader->getLineNumber()  << " of CFG file."<< std::endl;
 		}
+		if(curAtomData.size() >= DIM){
+			position[0] = atof(curAtomData[0].c_str());
+			position[1] = atof(curAtomData[1].c_str());
+			position[2] = atof(curAtomData[2].c_str());
+			curAtomData.erase(curAtomData.begin(),curAtomData.begin()+DIM);
+			transform.multiplyAndTranslate(position,translate,position);
+			data->addAtom(position, curAtomData);
+		}
 	}
 	delete reader;
-	data->addAtoms(atomPositions, header.numParticles);
-	delete[] atomPositions;
+}
+
+void CFGImporter::readAtom() {
+	curAtomData.clear();
+	skipExtendedLines();
+	const std::string & line  = reader->getLineStr();
+	size_t fieldBegin = 0;
+	size_t fieldEnd = line.find_first_of(" \t",fieldBegin);
+	while (fieldEnd != std::string::npos){
+		if(fieldBegin != fieldEnd){
+			curAtomData.push_back(line.substr(fieldBegin,fieldEnd-fieldBegin));
+		}
+		fieldBegin = fieldEnd + 1;
+		fieldEnd = line.find_first_of(" \t",fieldBegin);
+	}
+	//parse last field
+	if(fieldBegin != line.size()){
+		curAtomData.push_back(line.substr(fieldBegin));
+	}
+	//indicate an error if the number of entries is not valid
+	if(curAtomData.size() != header.getEntryCount()){
+		throw Exception("Data line in input file does not contain the right number of columns. Expected " +
+				std::to_string(header.getEntryCount())+ " file columns, but found only " + std::to_string(curAtomData.size()));
+
+	}
+	curAtomNum++;
+}
+
+void CFGImporter::skipExtendedLines() {
+	if(!header.isExtendedFormat()) {
+		return;
+	}
+	if( isNewType(reader->getLineStr()) ){
+		//new type means skipping two lines (mass and name info)
+		reader->readLine();
+		reader->readLine();
+	}
 }
 
 void CFGImporter::readAtomPositions(int particleIndex, const char* s)
@@ -260,11 +173,11 @@ void CFGImporter::readAtomPositions(int particleIndex, const char* s)
 		s++;
 	}
 	if(columnIndex < DIM){
-		std::cerr << "Dataline error" << std::endl;
 		throw Exception("Data line in input file does not contain enough columns. Expected" + std::to_string(DIM)+ " file columns, but found only " + std::to_string(columnIndex));
 	}
 	transform.multiplyAndTranslate(atomPositions+particleIndex*DIM,translate,atomPositions+particleIndex*DIM);
 }
+
 
 double CFGImporter::parseField(int particleIndex, int columnIndex, const char* token, const char* token_end)
 {

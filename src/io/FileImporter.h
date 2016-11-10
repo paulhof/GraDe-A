@@ -28,7 +28,7 @@ enum FileType{cfg};
 class TextReader;
 class Matrix3{
 public:
-	double get(char i,char j){
+	double get(char i,char j) const{
 		if (i > 2) return 0.;
 		if (i < 0) return 0.;
 		if (j > 2) return 0.;
@@ -64,7 +64,8 @@ public:
 		outVector[1] += translation[1];
 		outVector[2] += translation[2];
 	}
-	Matrix3 multiply(Matrix3 * mIn){
+
+	Matrix3 multiply(const Matrix3 * mIn) const {
 		double curVal = 0.;
 		Matrix3 mOut;
 		for(char i = 0; i < 3; i++){
@@ -114,7 +115,7 @@ protected:
 	std::string filename;
 	FileType fileType;
 	AtomContainer * data;
-	TextReader * reader;
+	TextReader * reader = nullptr;
 };
 
 class TextReader{
@@ -123,28 +124,29 @@ public:
 	~TextReader();
 	bool eof();
 	long getLineNumber();
-	const char* getLine() const { return line.data(); }
+	const char* getLine() const { return line_str.c_str(); }
+	const std::string & getLineStr() const { return line_str;}
 	bool lineStartsWith(const char* s) const {
 		for(const char* l = getLine(); *s; ++s, ++l) {
 			if(*l != *s) return false;
 		}
 		return true;
 	}
-	const char* readLine(int maxSize = 0);
-	const char* readLineTrimLeft(int maxSize = 0);
+	const char* readLine();
+	//const char* readLineTrimLeft(int maxSize = 0);
 	std::string lineString();
 private:
-	int getline(std::vector<char> &outLine, int maxNumChars );
+	int getline();
 	// The name of the input file (if known).
 	std::string filename;
 	/// Buffer holding the current text line.
-	std::vector<char> line;
+	std::string line_str;
 	///Some beautiful input stream which contains a huge amount of beer.
 	std::ifstream * fileStream = nullptr;
 	/// The current line number.
 	long lineNumber;
 	/// The current position in the uncompressed data stream.
-	long byteOffset;
+	//long byteOffset;
 
 };
 #endif /* FILEIMPORTER_H_ */

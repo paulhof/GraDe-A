@@ -50,69 +50,79 @@ int Format::getNumColumns() const {
 
 void Format::fillTable(CSVTableWriter * csvTable, const ContainerData * container, const CubicLattice & material) const{
 	if(csvTable == nullptr){
-			return;
-		}
-		if(container == nullptr){
-			return;
-		}
+		return;
+	}
+	if(container == nullptr){
+		return;
+	}
 
-		prepareTable(csvTable);
-			std::vector<const GrainData *> sortedGrainList;
-			for(gID iG = 0; iG < container->getNumberOfGrains(); iG++){
-				sortedGrainList.push_back(container->getGrain(iG));
-			}
-			std::sort(sortedGrainList.begin(), sortedGrainList.end(),sortByGrainId);
-			const GrainData * grain;
-			double bungeAngles[3];
-			char iEntry = 0;
-			//write header line
-			std::string periodicString = container->isPeriodic() ? getPeriodicFlag() : "";
-			csvTable->addHeaderLine(
-					ori::to_string(container->getSize()[0])		+ csvTable->getSeparator() +
-					ori::to_string(container->getSize()[1])		+ csvTable->getSeparator() +
-					ori::to_string(container->getSize()[2])		+ csvTable->getSeparator() +
-					periodicString								+ csvTable->getSeparator() +
-					ori::to_string(container->getOrigin()[0])	+ csvTable->getSeparator() +
-					ori::to_string(container->getOrigin()[1])	+ csvTable->getSeparator() +
-					ori::to_string(container->getOrigin()[2])
-					);
-			//write grains line by line
-			for(gID iG = 0; iG < sortedGrainList.size(); iG++){
-				grain = sortedGrainList[iG];
-				iEntry = 0;
-				csvTable->addNewLine();
-				//ID
-				csvTable->addEntryToCurrentLine(std::to_string(grain->getAssignedId()),iEntry++);
-				//NumAtoms
-				csvTable->addEntryToCurrentLine(std::to_string(grain->getNumberOfAtoms()),iEntry++);
-				//NumRegularAtoms
-				csvTable->addEntryToCurrentLine(std::to_string(grain->getNumberOfRegularAtoms()),iEntry++);
-				//NumOrphanAtoms
-				csvTable->addEntryToCurrentLine(std::to_string(grain->getNumberOfOrphanAtoms()),iEntry++);
-				//Position data
-				double reducedPoint[DIM];
-				container->reducedPoint(grain->getCenter(),reducedPoint);
-				csvTable->addEntryToCurrentLine(ori::to_string(reducedPoint[0]),iEntry++);
-				csvTable->addEntryToCurrentLine(ori::to_string(reducedPoint[1]),iEntry++);
-				csvTable->addEntryToCurrentLine(ori::to_string(reducedPoint[2]),iEntry++);
-				//Orientation in euler-angles
-				grain->getOrientation()->obtainBungeAngles(bungeAngles);
-				csvTable->addEntryToCurrentLine(ori::to_string(bungeAngles[0]*RADTODEG),iEntry++);
-				csvTable->addEntryToCurrentLine(ori::to_string(bungeAngles[1]*RADTODEG),iEntry++);
-				csvTable->addEntryToCurrentLine(ori::to_string(bungeAngles[2]*RADTODEG),iEntry++);
-				//Orientation spread
-				csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientationSpread()*RADTODEG),iEntry++);
-				//Orientation as quaternion
-				csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[0]),iEntry++);
-				csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[1]),iEntry++);
-				csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[2]),iEntry++);
-				csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[3]),iEntry++);
-				//Additional Data
-				csvTable->addEntryToCurrentLine(ori::to_string(grain->getVolumeInLatticeUnit(material)),iEntry++);
-				csvTable->addEntryToCurrentLine(ori::to_string(grain->getMisOrientationToInit()*RADTODEG),iEntry++);
-				csvTable->addEntryToCurrentLine(ori::to_string(grain->getRedMisOrientationToInit()*RADTODEG),iEntry++);
-				csvTable->addEntryToCurrentLine(ori::to_string(grain->getDistanceToInit()),iEntry++);
-			}
+	prepareTable(csvTable);
+	std::vector<std::string> atomPropertyNames;
+	container->getAtomPropertyNames(atomPropertyNames);
+	for(int i = 0; i < atomPropertyNames.size(); i ++){
+		csvTable->addNewColumn(atomPropertyNames[i]);
+	}
+	std::vector<const GrainData *> sortedGrainList;
+	for(gID iG = 0; iG < container->getNumberOfGrains(); iG++){
+		sortedGrainList.push_back(container->getGrain(iG));
+	}
+	std::sort(sortedGrainList.begin(), sortedGrainList.end(),sortByGrainId);
+	const GrainData * grain;
+	double bungeAngles[3];
+	char iEntry = 0;
+	//write header line
+	std::string periodicString = container->isPeriodic() ? getPeriodicFlag() : "";
+	csvTable->addHeaderLine(
+			ori::to_string(container->getSize()[0])		+ csvTable->getSeparator() +
+			ori::to_string(container->getSize()[1])		+ csvTable->getSeparator() +
+			ori::to_string(container->getSize()[2])		+ csvTable->getSeparator() +
+			periodicString								+ csvTable->getSeparator() +
+			ori::to_string(container->getOrigin()[0])	+ csvTable->getSeparator() +
+			ori::to_string(container->getOrigin()[1])	+ csvTable->getSeparator() +
+			ori::to_string(container->getOrigin()[2])
+			);
+		//write grains line by line
+	for(gID iG = 0; iG < sortedGrainList.size(); iG++){
+		grain = sortedGrainList[iG];
+		iEntry = 0;
+		csvTable->addNewLine();
+		//ID
+		csvTable->addEntryToCurrentLine(std::to_string(grain->getAssignedId()),iEntry++);
+		//NumAtoms
+		csvTable->addEntryToCurrentLine(std::to_string(grain->getNumberOfAtoms()),iEntry++);
+		//NumRegularAtoms
+		csvTable->addEntryToCurrentLine(std::to_string(grain->getNumberOfRegularAtoms()),iEntry++);
+		//NumOrphanAtoms
+		csvTable->addEntryToCurrentLine(std::to_string(grain->getNumberOfOrphanAtoms()),iEntry++);
+		//Position data
+		double reducedPoint[DIM];
+		container->reducedPoint(grain->getCenter(),reducedPoint);
+		csvTable->addEntryToCurrentLine(ori::to_string(reducedPoint[0]),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(reducedPoint[1]),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(reducedPoint[2]),iEntry++);
+		//Orientation in euler-angles
+		grain->getOrientation()->obtainBungeAngles(bungeAngles);
+		csvTable->addEntryToCurrentLine(ori::to_string(bungeAngles[0]*RADTODEG),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(bungeAngles[1]*RADTODEG),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(bungeAngles[2]*RADTODEG),iEntry++);
+		//Orientation spread
+		csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientationSpread()*RADTODEG),iEntry++);
+		//Orientation as quaternion
+		csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[0]),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[1]),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[2]),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[3]),iEntry++);
+		//Additional Data
+		csvTable->addEntryToCurrentLine(ori::to_string(grain->getVolumeInLatticeUnit(material)),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(grain->getMisOrientationToInit()*RADTODEG),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(grain->getRedMisOrientationToInit()*RADTODEG),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(grain->getDistanceToInit()),iEntry++);
+		//Additional Properties
+		const std::vector<double> & properties = grain->getProperties();
+		for(int i = 0; i < properties.size(); i ++){
+			csvTable->addEntryToCurrentLine(ori::to_string(properties[i]), iEntry++);
+		}
+	}
 }
 
 void Format::fillTable(CSVTableWriter * csvTable, const AtomContainer * container, const CubicLattice & material) const{
@@ -124,68 +134,77 @@ void Format::fillTable(CSVTableWriter * csvTable, const AtomContainer * containe
 	}
 
 	prepareTable(csvTable);
-		std::vector< const Grain *> sortedGrainList;
-		for(gID iG = 0; iG < container->getNumGrains(); iG++){
-			sortedGrainList.push_back(container->getGrain(iG));
+	std::vector<std::string> atomPropertyNames;
+	container->getAtomPropertyNames(atomPropertyNames, false);
+	for(int i = 0; i < atomPropertyNames.size(); i ++){
+		csvTable->addNewColumn(atomPropertyNames[i]);
+	}
+	std::vector< const Grain *> sortedGrainList;
+	for(gID iG = 0; iG < container->getNumGrains(); iG++){
+		sortedGrainList.push_back(container->getGrain(iG));
+	}
+	std::sort(sortedGrainList.begin(), sortedGrainList.end(),sortById);
+	const Grain * grain;
+	double bungeAngles[3];
+	char iEntry = 0;
+	//write header line
+	std::string periodicString = container->isPeriodic() ? getPeriodicFlag() : "";
+	csvTable->addHeaderLine(
+		ori::to_string(container->getSize()[0])		+ csvTable->getSeparator() +
+		ori::to_string(container->getSize()[1])		+ csvTable->getSeparator() +
+		ori::to_string(container->getSize()[2])		+ csvTable->getSeparator() +
+		periodicString								+ csvTable->getSeparator() +
+		ori::to_string(container->getOrigin()[0])	+ csvTable->getSeparator() +
+		ori::to_string(container->getOrigin()[1])	+ csvTable->getSeparator() +
+		ori::to_string(container->getOrigin()[2])
+	);
+	//write grains line by line
+	for(gID iG = 0; iG < sortedGrainList.size(); iG++){
+		grain = sortedGrainList[iG];
+		iEntry = 0;
+		csvTable->addNewLine();
+		//ID
+		csvTable->addEntryToCurrentLine(std::to_string(grain->getAssignedId()),iEntry++);
+		//NumAtoms
+		csvTable->addEntryToCurrentLine(std::to_string(grain->getNumberOfAtoms()),iEntry++);
+		//NumRegularAtoms
+		csvTable->addEntryToCurrentLine(std::to_string(grain->getNumberOfRegularAtoms()),iEntry++);
+		//NumOrphanAtoms
+		csvTable->addEntryToCurrentLine(std::to_string(grain->getNumberOfOrphanAtoms()),iEntry++);
+		//Position data
+		double reducedPoint[DIM];
+		container->reducedPoint(grain->getPosition(),reducedPoint);
+		csvTable->addEntryToCurrentLine(ori::to_string(reducedPoint[0]),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(reducedPoint[1]),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(reducedPoint[2]),iEntry++);
+		//csvTable->addEntryToCurrentLine(ori::to_string(grain->getPosition()[0]),iEntry++);
+		//csvTable->addEntryToCurrentLine(ori::to_string(grain->getPosition()[1]),iEntry++);
+		//csvTable->addEntryToCurrentLine(ori::to_string(grain->getPosition()[2]),iEntry++);
+		//Orientation in euler-angles
+		grain->getOrientation()->obtainBungeAngles(bungeAngles);
+		csvTable->addEntryToCurrentLine(ori::to_string(bungeAngles[0]*RADTODEG),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(bungeAngles[1]*RADTODEG),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(bungeAngles[2]*RADTODEG),iEntry++);
+		//Orientation spread
+		csvTable->addEntryToCurrentLine(ori::to_string(grain->orientationSpread()*RADTODEG),iEntry++);
+		//Orientation as quaternion
+		csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[0]),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[1]),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[2]),iEntry++);
+		csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[3]),iEntry++);
+		//
+		csvTable->addEntryToCurrentLine(ori::to_string(grain->getVolumeInLatticeUnit(material)),iEntry++);
+		csvTable->addEntryToCurrentLine(std::to_string(0.),iEntry++);
+		csvTable->addEntryToCurrentLine(std::to_string(0.),iEntry++);
+		csvTable->addEntryToCurrentLine(std::to_string(0.),iEntry++);
+		const std::vector <double> & properties = grain->getProperties();
+		for(int i = 0; i < properties.size(); i ++){
+			csvTable->addEntryToCurrentLine(ori::to_string(properties[i]), iEntry++);
 		}
-		std::sort(sortedGrainList.begin(), sortedGrainList.end(),sortById);
-		const Grain * grain;
-		double bungeAngles[3];
-		char iEntry = 0;
-		//write header line
-		std::string periodicString = container->isPeriodic() ? getPeriodicFlag() : "";
-		csvTable->addHeaderLine(
-				ori::to_string(container->getSize()[0])		+ csvTable->getSeparator() +
-				ori::to_string(container->getSize()[1])		+ csvTable->getSeparator() +
-				ori::to_string(container->getSize()[2])		+ csvTable->getSeparator() +
-				periodicString								+ csvTable->getSeparator() +
-				ori::to_string(container->getOrigin()[0])	+ csvTable->getSeparator() +
-				ori::to_string(container->getOrigin()[1])	+ csvTable->getSeparator() +
-				ori::to_string(container->getOrigin()[2])
-				);
-		//write grains line by line
-		for(gID iG = 0; iG < sortedGrainList.size(); iG++){
-			grain = sortedGrainList[iG];
-			iEntry = 0;
-			csvTable->addNewLine();
-			//ID
-			csvTable->addEntryToCurrentLine(std::to_string(grain->getAssignedId()),iEntry++);
-			//NumAtoms
-			csvTable->addEntryToCurrentLine(std::to_string(grain->getNumberOfAtoms()),iEntry++);
-			//NumRegularAtoms
-			csvTable->addEntryToCurrentLine(std::to_string(grain->getNumberOfRegularAtoms()),iEntry++);
-			//NumOrphanAtoms
-			csvTable->addEntryToCurrentLine(std::to_string(grain->getNumberOfOrphanAtoms()),iEntry++);
-			//Position data
-			double reducedPoint[DIM];
-			container->reducedPoint(grain->getPosition(),reducedPoint);
-			csvTable->addEntryToCurrentLine(ori::to_string(reducedPoint[0]),iEntry++);
-			csvTable->addEntryToCurrentLine(ori::to_string(reducedPoint[1]),iEntry++);
-			csvTable->addEntryToCurrentLine(ori::to_string(reducedPoint[2]),iEntry++);
-			//csvTable->addEntryToCurrentLine(ori::to_string(grain->getPosition()[0]),iEntry++);
-			//csvTable->addEntryToCurrentLine(ori::to_string(grain->getPosition()[1]),iEntry++);
-			//csvTable->addEntryToCurrentLine(ori::to_string(grain->getPosition()[2]),iEntry++);
-			//Orientation in euler-angles
-			grain->getOrientation()->obtainBungeAngles(bungeAngles);
-			csvTable->addEntryToCurrentLine(ori::to_string(bungeAngles[0]*RADTODEG),iEntry++);
-			csvTable->addEntryToCurrentLine(ori::to_string(bungeAngles[1]*RADTODEG),iEntry++);
-			csvTable->addEntryToCurrentLine(ori::to_string(bungeAngles[2]*RADTODEG),iEntry++);
-			//Orientation spread
-			csvTable->addEntryToCurrentLine(ori::to_string(grain->orientationSpread()*RADTODEG),iEntry++);
-			//Orientation as quaternion
-			csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[0]),iEntry++);
-			csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[1]),iEntry++);
-			csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[2]),iEntry++);
-			csvTable->addEntryToCurrentLine(ori::to_string(grain->getOrientation()->getQuaternion()[3]),iEntry++);
-			//
-			csvTable->addEntryToCurrentLine(ori::to_string(grain->getVolumeInLatticeUnit(material)),iEntry++);
-			csvTable->addEntryToCurrentLine(std::to_string(0.),iEntry++);
-			csvTable->addEntryToCurrentLine(std::to_string(0.),iEntry++);
-			csvTable->addEntryToCurrentLine(std::to_string(0.),iEntry++);
-		}
+	}
 }
 
-bool Format::isRightFormat(CSVTableReader* csvTable) const{
+bool Format::isRightFormat(const CSVTableReader* csvTable) const{
 	//header must be existing
 	if(csvTable->getNumHeaderLines() != numHeaderLines) {
 #ifdef DEBUGMODE
@@ -195,7 +214,7 @@ bool Format::isRightFormat(CSVTableReader* csvTable) const{
 	}
 	//check size
 	double size[3];
-	for(char dim = 0; dim < 2; dim ++){
+	for(char dim = 0; dim < 3; dim ++){
 		//sizes must be positive numbers
 		size[dim] = atof(csvTable->headerEntry(containerSizeLineNum,containerSizeColNum + dim).c_str());
 		if(  size[dim] <= 0.){
@@ -214,7 +233,7 @@ bool Format::isRightFormat(CSVTableReader* csvTable) const{
 		return false;
 	}
 	//check origin
-	for(char dim = 0; dim < 2; dim ++){
+	for(char dim = 0; dim < 3; dim ++){
 		//origin not  allowed to be larger than size
 		if(  fabs(atof(csvTable->headerEntry(containerOriginLineNum,containerOriginColNum + dim).c_str())) > size[dim]){
 #ifdef DEBUGMODE
@@ -235,7 +254,7 @@ bool Format::isRightFormat(CSVTableReader* csvTable) const{
 	return true;
 }
 
-bool Format::init(CSVTableReader* csvTable, ContainerData* data) const{
+bool Format::init(const CSVTableReader* csvTable, ContainerData* data) const{
 	if(data == nullptr){
 		return false;
 	}
@@ -253,6 +272,29 @@ bool Format::init(CSVTableReader* csvTable, ContainerData* data) const{
 	}
 	data->setSize(size);
 	data->setPeriodic(csvTable->headerEntry(periodicLineNum, periodicColNum) == periodicFlag);
+
+	//determine additional properties
+	int numColumns = csvTable->getNumColumns();
+	std::string propertyName;
+	std::vector<std::string> additionalPropertyNames;
+	bool newPropertyDetected = false;
+	int newPropertyStart = 0;
+	for(int iC = colNames.size(); iC < numColumns; iC ++){
+		propertyName = csvTable->getColumnName(iC);
+		if (!newPropertyDetected) {
+			if (iC-colNames.size() >= optionalColNames.size()){
+				newPropertyDetected = true;
+				newPropertyStart = iC;
+			} else if(propertyName != optionalColNames[iC-colNames.size()]){
+				newPropertyDetected = true;
+				newPropertyStart = iC;
+			}
+		}
+		if (newPropertyDetected) {
+			additionalPropertyNames.push_back(propertyName);
+		}
+	}
+	data->setAtomPropertyNames(additionalPropertyNames);
 	//Grain center position
 	gID maxAssignedId = 0;
 	gID assignedId;
@@ -262,9 +304,10 @@ bool Format::init(CSVTableReader* csvTable, ContainerData* data) const{
 	double oriSpread;
 	long numOrphanAtoms;
 	long numRegularAtoms;
-
+	std::vector<double> additionalProperties;
 	//parse all grains
 	for (int iG = 0; iG < csvTable->getNumLines(); iG++){
+		additionalProperties.clear();
 		//assigned Id
 		assignedId = atol(csvTable->entry(iG, getColNum(Column::GrainID)).c_str());
 		if(assignedId > maxAssignedId){
@@ -284,9 +327,17 @@ bool Format::init(CSVTableReader* csvTable, ContainerData* data) const{
 		for(char iEntry = getColNum(Column::quaternion_0); iEntry <= getColNum(Column::quaternion_3); iEntry++){
 			qOri[iEntry-getColNum(Column::quaternion_0)] = atof(csvTable->entry(iG, iEntry).c_str());
 		}
-
+		for(char iEntry = getColNum(Column::quaternion_0); iEntry <= getColNum(Column::quaternion_3); iEntry++){
+			qOri[iEntry-getColNum(Column::quaternion_0)] = atof(csvTable->entry(iG, iEntry).c_str());
+		}
+		if(newPropertyDetected){
+			//parse additional properties
+			for(int iEntry = newPropertyStart; iEntry < numColumns; iEntry ++){
+				additionalProperties.push_back(atof(csvTable->entry(iG, iEntry).c_str()));
+			}
+		}
 		//now add a grain to prevData
-		GrainData grain(pos,qOri, numAtoms, assignedId, numRegularAtoms, numOrphanAtoms,oriSpread);
+		GrainData grain(pos,qOri, numAtoms, assignedId, numRegularAtoms, numOrphanAtoms, oriSpread, additionalProperties);
 		data->addGrain(grain);
 	}
 	//grainNumberingBegin = maxAssignedId+1;

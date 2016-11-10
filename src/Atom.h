@@ -32,9 +32,9 @@ public:
 	oID getOrientationId() const;
 	virtual ~Atom();
 private:
+	double pos[DIM];
 	oID orientID = 0;
 	gID grainID = 0;
-	double pos[DIM];
 };
 
 #endif /* ATOM_H_ */

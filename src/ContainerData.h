@@ -43,7 +43,8 @@ public:
 	const GrainData * getGrain(gID grainId) const;
 	const double * getSize() const;
 	const double * getOrigin() const;
-
+	void setAtomPropertyNames(const std::vector<std::string> & inProperties);
+	void getAtomPropertyNames(std::vector<std::string> & outProperties) const;
 	bool isPeriodic() const {
 		return periodic;
 	}
@@ -57,6 +58,7 @@ private:
 	//! If the container is periodic, returns a value inside the containers boundaries.
 	double reducedCoordinate(double pos, unsigned char dimension) const;
 	std::vector<GrainData>  grains;
+	std::vector<std::string> propertyNames;
 	double origin[DIM] {
 		0., 0., 0.
 	};

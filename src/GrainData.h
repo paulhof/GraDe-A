@@ -26,7 +26,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 class GrainData {
 public:
 	GrainData(){};
-	GrainData(double * inCenter, double * inQuaternion, long inNumAtoms, gID inAssignedId, long inNumRegularAtoms = 0, long inNumOprhanAtoms = 0, double inOrientationSpread = 0.);
+	GrainData(double * inCenter, double * inQuaternion, long inNumAtoms,
+			gID inAssignedId, long inNumRegularAtoms = 0, long inNumOprhanAtoms = 0,
+			double inOrientationSpread = 0., const std::vector<double> & properties = {});
 	GrainData(const Grain * inGrain);
 	virtual ~GrainData();
 	//!\brief returns a pointer to access the entries of center.
@@ -65,7 +67,7 @@ public:
 	double getRedMisOrientationToInit() const {
 		return redMisOrientationToInit;
 	}
-
+	const std::vector<double> & getProperties() const;
 private:
 	double center[DIM] = {0.,0.,0.};
 	Orientation meanOrient;
@@ -78,6 +80,7 @@ private:
 	double redMisOrientationToInit = 0.;
 	double distanceToInit = 0.;
 	gID assignedId = NO_GRAIN;
+	std::vector<double> meanProperties;
 };
 
 #endif /* GRAINDATA_H_ */

@@ -63,7 +63,6 @@ bool CSVTableReader::parse() {
 	//delete last line when its empty and there are at least 2 columns
 	if(lines.size() > 0 && columnNames.size() > 1 ){
 		if(lines.back().size() == 1){
-			std::cout << fileName <<" back = \"" << lines.back().back() << "\"" << std::endl;
 			if(lines.back().back() == ""){
 				lines.pop_back();
 			}

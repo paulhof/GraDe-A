@@ -25,30 +25,23 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 class AtomIO {
 public:
 	AtomIO();
-	bool openCfgFile(std::string &fileName, const char mode);
+	bool openCfgFile(std::string &fileName);
 	void writeCfgFileHeader(const double * boxSize, long nAtoms, long nAuxData, std::string * auxDataNames, const std::string &chemElement, double atomMass = ALUMINUMELEMENTMASS);
-	void writeCfgAtomPos(double * pos);
+	void appendAtomToCfgFile(const double * pos, const double * data);
+	void appendAtomToCfgFile(const double * pos, const std::vector<std::string>& properties);
+	void closeCfgFile();
+private:
+	void writeCfgAtomPos(const double * pos, unsigned int precision = 15);
+	void writeCfgAux(const std::string & aux);
+	void writeCfgAux(double aux, unsigned int precision = 10);
 	void writeCfgAux(long aux);
 	void writeCfgLineBreak();
-	void readNextIntFromCfgFile(int &value);
-	void readNextDoubleFromCfgFile(double * value);
-	void skipLinesCfg(long nLines);
-	void appendAtomToCfgFile(double * pos, double * data);
-	void closeInCfgFile();
-	void closeOutCfgFile();
-private:
-	int readNextInt(FILE * f, int *ival);
-	int readNextFloat(FILE * f, double *dval);
-	void skipLines(FILE * f, long nLines);
-	void readNextLine(FILE * f, char * line);
-	bool fileOpen;
+	bool fileOpen = false;
 	char buffer[MAXLINELEN];
-	double cfgBoxSize[3];
+	double cfgBoxSize[3] = {0.,0.,0.};
 	std::string fileName;
-	FILE *fInCfg;
-	FILE *fOutCfg;
-	FILE *fOutLammps;
-	long nCfgAuxData;
+	FILE *fOutCfg = nullptr;
+	long nCfgAuxData = 0;
 };
 
 #endif /* ATOMIO_H_ */

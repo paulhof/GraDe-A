@@ -38,5 +38,8 @@ OMP_NUM_THREADS=8
 Please write the glob-pattern with "", the corresponding files are found by the software itself.
 The program generates a folder "./TimeEvo/" and writes output-files for each inputfile.
 
+Armadillo is open source software released under MPL2, for license details see either ./armadillo/LICENSE.txt or http://mozilla.org/MPL/2.0/
+Eigen is open source software released under MPL2, for license details see http://mozilla.org/MPL/2.0/
+
 Cfg-file-reading routines have been taken from Ovito and edited.
 See http://ovito.org/ for full source.

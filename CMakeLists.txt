@@ -33,12 +33,15 @@ ENDIF()
 
 IF(CYGWIN)
 message("-- Detected CYGWIN Environment")
+	add_definitions(-DCYGWIN)
 ENDIF()
 IF(WIN32)
-message("-- Detected Win32 Environment")
+	message("-- Detected Win32 Environment")
 ENDIF()
-IF(NOT (CYGWIN OR WIN32))
-message("-- Assuming Linux Environment")
+IF(CYGWIN OR WIN32)
+	add_definitions(-DWINDOWS)
+ELSE()
+	message("-- Assuming Linux Environment")
 ENDIF()
 
 #Add C++11 support
@@ -84,10 +87,13 @@ add_executable("grade-A${BINARY_NAME}"
 	${CMAKE_SOURCE_DIR}/src/GrainIDMapper.cpp
 	${CMAKE_SOURCE_DIR}/src/ContainerData.cpp
 	${CMAKE_SOURCE_DIR}/src/GrainData.cpp
+	${CMAKE_SOURCE_DIR}/src/AtomPropertyList.cpp
+	${CMAKE_SOURCE_DIR}/src/AtomIdList.cpp
 	${CMAKE_SOURCE_DIR}/src/io/FileImporter.cpp
 	${CMAKE_SOURCE_DIR}/src/io/CFGImporter.cpp
 	${CMAKE_SOURCE_DIR}/src/io/FileEditor.cpp
 	${CMAKE_SOURCE_DIR}/src/io/CFGEditor.cpp
+	${CMAKE_SOURCE_DIR}/src/io/CFGHeaderData.cpp
 	${CMAKE_SOURCE_DIR}/src/io/GrainCSVFileFormat.cpp
 	${CMAKE_SOURCE_DIR}/src/io/AtomIO.cpp
 	${CMAKE_SOURCE_DIR}/src/io/CSVTableWriter.cpp	
@@ -101,57 +107,75 @@ IF(NOT MANUAL_C++11_FLAG)
 	set_property(TARGET "grade-A${BINARY_NAME}" PROPERTY CXX_STANDARD_REQUIRED ON)
 	message("-- Automatically added C++11 support")
 ENDIF()
-set(ARMA_LIB_ENDING ".so")
-set(BLAS_LIBFILE "${CMAKE_SOURCE_DIR}/lib/libblas.dll")
-set(LAPACK_LIBFILE "${CMAKE_SOURCE_DIR}/lib/liblapack.dll")
 
-#find correct library files for windows
-IF (EXISTS "${CMAKE_SOURCE_DIR}/lib/libblas.dll")
+IF(USE_ARMADILLO)#use armadillo library
+	set(LIB_ENDING ".dll")
+	IF (MSVC)
+		 set(LIB_ENDING ".lib")
+	ENDIF()
+	add_definitions(-DUSE_ARMADILLO)
+	set(ARMA_LIB_ENDING ".so")
 	set(BLAS_LIBFILE "${CMAKE_SOURCE_DIR}/lib/libblas.dll")
-ELSEIF (EXISTS "${CMAKE_SOURCE_DIR}/lib/blas_win64_MT.dll")
-	set(BLAS_LIBFILE "${CMAKE_SOURCE_DIR}/lib/blas_win64_MT.dll")
-ENDIF()
-
-IF (EXISTS "${CMAKE_SOURCE_DIR}/lib/liblapack.dll")
 	set(LAPACK_LIBFILE "${CMAKE_SOURCE_DIR}/lib/liblapack.dll")
-ELSEIF (EXISTS "${CMAKE_SOURCE_DIR}/lib/lapack_win64_MT.dll")
-	set(LAPACK_LIBFILE "${CMAKE_SOURCE_DIR}/lib/lapack_win64_MT.dll")
-ENDIF()
-IF(CYGWIN)
-add_definitions(-DCYGWIN)
-ENDIF()
-IF(WIN32 OR CYGWIN)
-	add_definitions(-DWINDOWS)
-	message("-- Linking BLAS library ${BLAS_LIBFILE}")
-	target_link_libraries("grade-A${BINARY_NAME}" ${BLAS_LIBFILE})
-	message("-- Linking LAPACK library ${LAPACK_LIBFILE}")
-	target_link_libraries("grade-A${BINARY_NAME}" ${LAPACK_LIBFILE})
-	set(ARMA_LIB_ENDING ".dll.a")
-ELSE()
-	#Link lapack
-	FIND_PACKAGE(LAPACK REQUIRED)
-	IF(LAPACK_FOUND)
-		message("-- Found LAPACK")
-		target_link_libraries("grade-A${BINARY_NAME}" ${LAPACK_LIBRARIES})
+
+	#find correct library files for windows
+	IF (EXISTS "${CMAKE_SOURCE_DIR}/lib/libblas.dll")
+		set(BLAS_LIBFILE "${CMAKE_SOURCE_DIR}/lib/libblas.dll")
+	ELSEIF (EXISTS "${CMAKE_SOURCE_DIR}/lib/blas_win64_MT${LIB_ENDING}")
+		set(BLAS_LIBFILE "${CMAKE_SOURCE_DIR}/lib/blas_win64_MT${LIB_ENDING}")
 	ENDIF()
 
-	#Link blas
-	FIND_PACKAGE(BLAS)
-	IF(BLAS_FOUND)
-		message("-- Found BLAS")
-		target_link_libraries("grade-A${BINARY_NAME}" ${BLAS_LIBRARIES})
+	IF (EXISTS "${CMAKE_SOURCE_DIR}/lib/liblapack.dll")
+		set(LAPACK_LIBFILE "${CMAKE_SOURCE_DIR}/lib/liblapack.dll")
+	ELSEIF (EXISTS "${CMAKE_SOURCE_DIR}/lib/lapack_win64_MT${LIB_ENDING}")
+		set(LAPACK_LIBFILE "${CMAKE_SOURCE_DIR}/lib/lapack_win64_MT${LIB_ENDING}")
 	ENDIF()
-ENDIF()
-FIND_PACKAGE(Armadillo)
-IF(ARMADILLO_FOUND)
-	target_link_libraries("grade-A${BINARY_NAME}" ${ARMADILLO_LIBRARIES})
-ELSE()
-	set(ARMADILLO_DIR "${CMAKE_SOURCE_DIR}/armadillo")
-	IF(EXISTS "${ARMADILLO_DIR}/libarmadillo${ARMA_LIB_ENDING}")
-		message("-- Found Armadillo in ${ARMADILLO_DIR}")
-		INCLUDE_DIRECTORIES("${ARMADILLO_DIR}/include")
-		target_link_libraries("grade-A${BINARY_NAME}" ${ARMADILLO_DIR}/libarmadillo${ARMA_LIB_ENDING})
+	
+	IF(WIN32 OR CYGWIN)
+		message("-- Linking BLAS library ${BLAS_LIBFILE}")
+		target_link_libraries("grade-A${BINARY_NAME}" ${BLAS_LIBFILE})
+		message("-- Linking LAPACK library ${LAPACK_LIBFILE}")
+		target_link_libraries("grade-A${BINARY_NAME}" ${LAPACK_LIBFILE})
+		set(ARMA_LIB_ENDING ".dll.a")
 	ELSE()
-	message(FATAL_ERROR "Armadillo not found in ${ARMADILLO_DIR}. Please download from http://arma.sourceforge.net/ and build.")
+		#Link lapack
+		FIND_PACKAGE(LAPACK REQUIRED)
+		IF(LAPACK_FOUND)
+			message("-- Found LAPACK")
+			target_link_libraries("grade-A${BINARY_NAME}" ${LAPACK_LIBRARIES})
+		ENDIF()
+
+		#Link blas
+		FIND_PACKAGE(BLAS)
+		IF(BLAS_FOUND)
+			message("-- Found BLAS")
+			target_link_libraries("grade-A${BINARY_NAME}" ${BLAS_LIBRARIES})
+		ENDIF()
+	ENDIF()
+
+	FIND_PACKAGE(Armadillo)
+	IF(ARMADILLO_FOUND)
+		target_link_libraries("grade-A${BINARY_NAME}" ${ARMADILLO_LIBRARIES})
+	ELSE()
+		set(ARMADILLO_DIR "${CMAKE_SOURCE_DIR}/armadillo")
+		IF(EXISTS "${ARMADILLO_DIR}/libarmadillo${ARMA_LIB_ENDING}")
+			message("-- Found Armadillo in ${ARMADILLO_DIR}")
+			INCLUDE_DIRECTORIES("${ARMADILLO_DIR}/include")
+			target_link_libraries("grade-A${BINARY_NAME}" ${ARMADILLO_DIR}/libarmadillo${ARMA_LIB_ENDING})
+		ELSEIF(MSVC AND EXISTS "${ARMADILLO_DIR}/armadillo.lib")
+				message("-- Found Armadillo in ${ARMADILLO_DIR}")
+				INCLUDE_DIRECTORIES("${ARMADILLO_DIR}/include")
+				target_link_libraries("grade-A${BINARY_NAME}" ${ARMADILLO_DIR}/armadillo.lib)
+		ELSE()
+				message(FATAL_ERROR "Armadillo not found in ${ARMADILLO_DIR}. Please download from http://arma.sourceforge.net/ and build.")
+		ENDIF()
+	ENDIF()
+ELSE() #use Eigen library
+	set(EIGEN_DIR "${CMAKE_SOURCE_DIR}/eigen")
+	IF(EXISTS "${EIGEN_DIR}/Eigen")
+		message("-- Found Eigen in ${EIGEN_DIR}")
+		INCLUDE_DIRECTORIES("${EIGEN_DIR}")
+	ELSE()
+		message(FATAL_ERROR "Eigen not found in ${EIGEN_DIR}. Please download from http://eigen.tuxfamily.org/.")
 	ENDIF()
 ENDIF()

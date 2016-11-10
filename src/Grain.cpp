@@ -179,3 +179,11 @@ double Grain::getVolume(const CubicLattice& material) const{
 double Grain::getVolumeInLatticeUnit(const CubicLattice& material) const{
 	return getNumberOfAtoms()*material.getVolumePerAtomInVolumeUnit();
 }
+
+void Grain::setProperties(const std::vector<double> & properties) {
+	meanProperties = properties;
+}
+
+const std::vector<double>& Grain::getProperties() const {
+	return meanProperties;
+}

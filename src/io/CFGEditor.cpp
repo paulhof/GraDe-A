@@ -33,8 +33,13 @@ CFGEditor::~CFGEditor() {
 
 void CFGEditor::readNextAtom() {
 	curAtomData.clear();
-	std::string curLine = editor.readNextLine();
 	skipExtendedLines();
+	std::string curLine;
+	if(curAtomNum == -1){
+		curLine = editor.getCurLine();
+	} else {
+		curLine = editor.readNextLine();
+	}
 	size_t fieldBegin = 0;
 	size_t fieldEnd = curLine.find_first_of(" \t",fieldBegin);
 	while (fieldEnd != std::string::npos){
@@ -44,6 +49,10 @@ void CFGEditor::readNextAtom() {
 		fieldBegin = fieldEnd + 1;
 		fieldEnd = curLine.find_first_of(" \t",fieldBegin);
 	}
+	//parse last field
+	if(fieldBegin != curLine.size()){
+		curAtomData.push_back(curLine.substr(fieldBegin));
+	}
 	curAtomNum++;
 }
 
@@ -52,7 +61,7 @@ int CFGEditor::getNumAuxFields() const{
 }
 
 void CFGEditor::setCurAux(int auxNum, std::string value) {
-	int fieldNum = auxNum + numPosFields + numVelFields;
+	int fieldNum = auxFieldNum(auxNum);
 	if(fieldNum < 0 || fieldNum >= curAtomData.size()) {
 		return;
 	}
@@ -84,114 +93,19 @@ void CFGEditor::parseHeader() {
 	headerParsed  = true;
 }
 
-void CFGHeaderData::parse(FileEditor* editor) {
-	numParticles = -1;
-	unitMultiplier = 1;
-	H0.setIdentity();
-	transform.setIdentity();
-	rateScale = 1.;
-	extendedFormat = false;
-	containsVelocities = true;
-
-	int entry_count = 0;
-	while(!editor->eof()) {
-			numLines++;
-			std::string line(editor->readNextLine());
-			// Ignore comments
-			size_t commentChar = line.find('#');
-			if(commentChar != std::string::npos) line.resize(commentChar);
-
-			// Skip empty lines.
-			size_t trimmedLine = line.find_first_not_of(" \t\n\r");
-			if(trimmedLine == std::string::npos) continue;
-			if(trimmedLine != 0) line = line.substr(trimmedLine);
-
-			size_t splitChar = line.find('=');
-			if(splitChar == std::string::npos) {
-				if(line.find(".NO_VELOCITY.") == 0) {
-					containsVelocities = false;
-					continue;
-				}
-				break;
-			}
-
-			std::string key = line.substr(0, line.find_last_not_of(" \t\n\r", splitChar - 1) + 1);
-			size_t valuestart = line.find_first_not_of(" \t\n\r", splitChar + 1);
-			if(valuestart == std::string::npos) valuestart = splitChar+1;
-			std::string value = line.substr(valuestart);
-
-			if(key == "Number of particles") {
-				numParticles = atoi(value.c_str());
-				if(numParticles < 0 || numParticles > 1e9)
-					throw Exception("CFG file parsing error. Invalid number of atoms (line " + std::to_string(editor->getLineNum()) + "): " + std::to_string(numParticles) + ")");
-			}
-			else if(key == "A") unitMultiplier = atof(value.c_str());
-			else if(key == "H0(1,1)") H0.set(0,0,atof(value.c_str()) * unitMultiplier);
-			else if(key == "H0(1,2)") H0.set(0,1,atof(value.c_str()) * unitMultiplier);
-			else if(key == "H0(1,3)") H0.set(0,2,atof(value.c_str()) * unitMultiplier);
-			else if(key == "H0(2,1)") H0.set(1,0,atof(value.c_str()) * unitMultiplier);
-			else if(key == "H0(2,2)") H0.set(1,1,atof(value.c_str()) * unitMultiplier);
-			else if(key == "H0(2,3)") H0.set(1,2,atof(value.c_str()) * unitMultiplier);
-			else if(key == "H0(3,1)") H0.set(2,0,atof(value.c_str()) * unitMultiplier);
-			else if(key == "H0(3,2)") H0.set(2,1,atof(value.c_str()) * unitMultiplier);
-			else if(key == "H0(3,3)") H0.set(2,2, atof(value.c_str()) * unitMultiplier);
-			else if(key == "Transform(1,1)") transform.set(0,0,atof(value.c_str()));
-			else if(key == "Transform(1,2)") transform.set(0,1,atof(value.c_str()));
-			else if(key == "Transform(1,3)") transform.set(0,2,atof(value.c_str()));
-			else if(key == "Transform(2,1)") transform.set(1,0,atof(value.c_str()));
-			else if(key == "Transform(2,2)") transform.set(1,1,atof(value.c_str()));
-			else if(key == "Transform(2,3)") transform.set(1,2,atof(value.c_str()));
-			else if(key == "Transform(3,1)") transform.set(2,0,atof(value.c_str()));
-			else if(key == "Transform(3,2)") transform.set(2,1,atof(value.c_str()));
-			else if(key == "Transform(3,3)") transform.set(2,2,atof(value.c_str()));
-			else if(key == "eta(1,1)") {}
-			else if(key == "eta(1,2)") {}
-			else if(key == "eta(1,3)") {}
-			else if(key == "eta(2,2)") {}
-			else if(key == "eta(2,3)") {}
-			else if(key == "eta(3,3)") {}
-			else if(key == "R") rateScale = atof(value.c_str());
-			else if(key == "entry_count") {
-				entry_count = atoi(value.c_str());
-				extendedFormat = true;
-			}
-			else if(key.compare(0, 10, "auxiliary[") == 0) {
-				extendedFormat = true;
-				size_t endOfName = value.find_first_of(" \t");
-				auxFields.push_back(value.substr(0, endOfName));
-			}
-			else {
-				throw Exception("Unknown key in CFG file header at line " + std::to_string(editor->getLineNum()) + ": " + line + ")");
-			}
-		}
-		if(numParticles < 0)
-			throw Exception("Invalid file header. This is not a valid CFG file.");
-}
-
-int CFGHeaderData::getNumAuxFields() const{
-	return auxFields.size();
-}
-
-std::string CFGHeaderData::getAuxField(int fieldNum) const{
-	if (fieldNum < 0 || fieldNum >= auxFields.size()){
-		return "";
-	}
-	return auxFields[fieldNum];
-}
-
 void CFGEditor::skipExtendedLines() {
-	if(!header.isExtendedFormat()) {
-		return;
+	if(header.isExtendedFormat()) {
+		std::string curLine = editor.getCurLine();
+		//if a new type is introduced, the line contains only a single column
+		//< \t>*<number><\n>
+		//      |<- trimPos
+		size_t trimPos = curLine.find_first_not_of(" \t");
+		if(curLine.find_first_of(" \t",trimPos) == std::string::npos){
+			//new type means skipping two lines (mass and name info)
+			editor.readNextLine();
+			editor.readNextLine();
+		}
 	}
-	std::string curLine = editor.getCurLine();
-	size_t trimPos = curLine.find_first_not_of(" \t");
-	if(curLine.find_first_not_of(" \t",trimPos) != std::string::npos){
-		//no new type found means nothing to skip
-		return;
-	}
-	//new type means skipping two lines (mass and name info)
-	editor.readNextLine();
-	editor.readNextLine();
 }
 
 std::string CFGEditor::curFieldString() {
@@ -201,10 +115,6 @@ std::string CFGEditor::curFieldString() {
 	}
 	ret.pop_back(); //delete last whitespace
 	return ret;
-}
-
-bool CFGHeaderData::containsVelFields() const{
-	return containsVelocities;
 }
 
 std::string CFGEditor::getAuxName(int auxNum) const{

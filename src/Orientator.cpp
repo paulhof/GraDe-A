@@ -17,7 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "Orientator.h"
-
 #define COS60DEG .5
 #define COS120DEG -.5
 #define COS90DEG .0
@@ -85,16 +84,20 @@ oID Orientator::orientateFCC(double * neighborPositions, unsigned char nNextNeig
 	ori::unitizeVectors(unitVectors, nNextNeighbors);
 	unsigned char nVects;
 	nVects = reduceAntiparallelVectors(unitVectors, nNextNeighbors);
-	double nextNborVects[nVects*DIM];
+	double * nextNborVects = new double [nVects*DIM];
 	for(long i = 0; i < nVects*DIM; i++){
 		nextNborVects[i] = unitVectors[i];
 	}
 	delete [] unitVectors;
 	//nextNborVects has now size nVects
 #ifndef DEBUGMODE
-	if (nVects < 6) return NO_ORIENTATION;
+	if (nVects < 6) {
+		delete [] nextNborVects;
+		return NO_ORIENTATION;
+	}
 #else
 	if (nVects < 6) {
+	delete [] nextNborVects;
 	std::cout << "NO ORI BECAUSE OF nVects < 6" << std::endl;
 	return NO_ORIENTATION;
 	}
@@ -118,6 +121,7 @@ oID Orientator::orientateFCC(double * neighborPositions, unsigned char nNextNeig
 			}
 		}
 	}
+	delete [] nextNborVects;
 	if (nPerpend < 3) {
 		//not enough perpend directions found
 		return NO_ORIENTATION;
@@ -126,27 +130,47 @@ oID Orientator::orientateFCC(double * neighborPositions, unsigned char nNextNeig
 }
 
 oID Orientator::calcOrientationFromThree100Directions(double * v100, double * v010, double * v001){
+#ifdef USE_ARMADILLO
 	arma::mat m(DIM,DIM);
+#else
+	Eigen::Matrix3d m;
+#endif
+	double det;
 	//row 0
 	m(0,0) = v100[0]; m(0,1) = v100[1]; m(0,2) = v100[2];
 	//row 1
 	m(1,0) = v010[0]; m(1,1) = v010[1]; m(1,2) = v010[2];
 	//row 2
 	m(2,0) = v001[0]; m(2,1) = v001[1];	m(2,2) = v001[2];
+
+#ifdef USE_ARMADILLO
+	det = arma::det(m);
+#else
+	det = m.determinant();
+#endif
 	//check if determinant is negative (matrix is left-handed)
-	if (arma::det(m) < 0.){
+	if (det < 0.){
 		m(0,0) = -v100[0];
 		m(0,1) = -v100[1];
 		m(0,2) = -v100[2];
 	}
-	if (arma::det(m) < 0.){
+#ifdef USE_ARMADILLO
+	det = arma::det(m);
+#else
+	det = m.determinant();
+#endif
+	if (det < 0.){
 		std::cout << "ERROR: determinant of matrix negative" << std::endl;
 		return NO_ORIENTATION;
 	}
 	return closestOrientation(m);
 }
 
+#ifdef USE_ARMADILLO
 oID Orientator::closestOrientation (arma::mat  & m3x3){
+#else
+oID Orientator::closestOrientation (Eigen::Matrix3d  & m3x3){
+#endif
 	double M[9] = {
 	m3x3(0,0), m3x3(0,1), m3x3(0,2),
 	m3x3(1,0), m3x3(1,1), m3x3(1,2),
@@ -202,7 +226,13 @@ oID Orientator::calcFCCOrientation_60Deg(double * v110, double * v101){
 
 void Orientator::matrixToClosestQuaternion(const double * M, double * q){
 	//see Itzhack 2000 " New Method for Extracting the Quaternion from a Rotation Matrix "
+#ifdef USE_ARMADILLO
 	arma::mat m(4,4);
+	arma::vec mEigval;
+	arma::mat mEigvec;
+#else
+	Eigen::Matrix4d m;
+#endif
 	m(0,0) = ONETHIRD * (M[0] - M[4] - M[8]);//d11 - d22 - d33 : 0
 	m(0,1) = ONETHIRD * (M[3] + M[1]);		//d21 + d12 : 1
 	m(0,2) = ONETHIRD * (M[6] + M[2]);		//d31 + d13 : 2
@@ -222,16 +252,28 @@ void Orientator::matrixToClosestQuaternion(const double * M, double * q){
 	m(3,1) = m(1,3);//d31 - d13 : 13
 	m(3,2) = m(2,3);//d12 - d21 : 14
 	m(3,3) = ONETHIRD * (M[0] + M[4] + M[8]);//d11 + d22 + d33 : 15
-	arma::vec mEigval;
-	arma::mat mEigvec;
+
 	char nEigvals;
+#ifndef USE_ARMADILLO
+	Eigen::SelfAdjointEigenSolver<Eigen::Matrix4d> eigenSolver;
+#endif
 	try{
+#ifdef USE_ARMADILLO
 		arma::eig_sym(mEigval, mEigvec, m);
 		nEigvals = mEigval.n_elem;
+#else//Use Eigen solver
+		eigenSolver.compute(m);
+		nEigvals = 4;
+
+#endif
 	} catch(...){
 		return;
 	}
+
 	if( nEigvals > 0){
+#ifndef USE_ARMADILLO
+	const Eigen::Matrix4d & mEigvec = eigenSolver.eigenvectors();
+#endif
 	q[0] = mEigvec(3,nEigvals - 1);
 	q[1] = mEigvec(0,nEigvals - 1);
 	q[2] = mEigvec(1,nEigvals - 1);
@@ -240,7 +282,6 @@ void Orientator::matrixToClosestQuaternion(const double * M, double * q){
 }
 
 oID Orientator::closeOrientbyQuaternion(double * q){
-	double * qi;
 	double cubicQuat[4];
 	ori::uniqueCubicRotationQuaternion(q,cubicQuat);
 	return newOrientbyQuaternion(cubicQuat);
@@ -319,23 +360,25 @@ oID Orientator::closestOrientation (const double * M){
 
 unsigned char Orientator::reduceAntiparallelVectors(doubleP &vects, unsigned char n){
 	double * v1, * v2;
-	bool redundand [n];
-	for(unsigned char i = 0; i < n; i++ )	redundand[i] = false;
+	bool * redundant = new bool [n];
+	for(unsigned char i = 0; i < n; i++ ){
+		redundant[i] = false;
+	}
 	unsigned char ii;
-	std::vector <double> v;
+	std::vector<double> v;
 
 	for(unsigned char i = 0; i < n; i++ ){
 			v1 = vects + i*DIM;
 			//check whether there is any vector to v1 with a near 180Deg relationship
 			for(ii = i+1; ii < n; ii++){
 				//both pair atoms should be unmarried
-					if(!redundand[i] && !redundand[ii]){
+					if(!redundant[i] && !redundant[ii]){
 						v2 = vects + ii*DIM;
 						//check the angle (is close to 180Deg? (scalar-product close to -1?))
 						if (fabs(fabs(ori::scalarProduct(v1, v2)) - 1 )< COSTRESHOLD ){
 							//now both are forced to wear wedding rings
-							redundand[i] = true;
-							redundand[ii] = true;
+							redundant[i] = true;
+							redundant[ii] = true;
 							//save the mean direction as vector
 							v.push_back(.5*(v1[0]-v2[0]));
 							v.push_back(.5*(v1[1]-v2[1]));
@@ -344,20 +387,22 @@ unsigned char Orientator::reduceAntiparallelVectors(doubleP &vects, unsigned cha
 					}
 			}
 			//if no partner was found, remain single forever!
-			if(!redundand[i]){
+			if(!redundant[i]){
 				v.push_back(v1[0]);
 				v.push_back(v1[1]);
 				v.push_back(v1[2]);
 			}
 	}
-	//initially vectors are no longer needed
+	//redundant information is no longer needed
+	delete [] redundant;
+	//initial vectors are no longer needed
 	delete [] vects;
 	//allocate for reduced vector list
 	vects = new double [v.size()];
 	for (unsigned char i = 0; i < v.size(); i ++){
 		vects[i] = v[i];
 	}
-	return v.size()/DIM;
+	return static_cast<unsigned char> (v.size()/DIM);
 }
 
 bool Orientator::vectsArePerpend(double * v1, double * v2){
@@ -423,7 +468,7 @@ bool sortVectsInSpace(double * vA, double  * vB){ return (7*vA[0] + 41*vA[1] + v
 
 void Orientator::sortVectsList(double * vList, long nVects){
 	double ** vects = new double * [nVects];
-	double sortedValues[nVects * DIM];
+	double * sortedValues = new double [nVects * DIM];
 	for (long i = 0; i < nVects; i++){
 		vects[i] = vList + i*DIM;
 	}
@@ -444,6 +489,7 @@ void Orientator::sortVectsList(double * vList, long nVects){
 	iP++;
 	vList[iP] = sortedValues[iP];
 	}
+	delete [] sortedValues;
 }
 
 long Orientator::getNumOrientations() const{

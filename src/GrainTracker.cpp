@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "GrainTracker.h"
-
+#include "StopWatch.h"
 GrainTracker::GrainTracker(OrientatorFileQueue * const inQueue, const CubicLattice * inMaterial, std::string inInitGrainFileName, bool inEditCfgFiles) {
 	initGrainFileName = inInitGrainFileName;
 	material = inMaterial;
@@ -34,87 +34,98 @@ GrainTracker::~GrainTracker() {
 
 void GrainTracker::run() {
 	std::cout << "Serial: Starting Grain Tracking." << std::endl;
-		std::string initCsvFileName;
-		int initFileNum = 0;
-		bool prevDataInitialized = false;
-		if( initGrainFileName != "") {
-			std::cout << "Initializing from grain data file \"" << initGrainFileName << "\" ." << std::endl;
-			initCsvFileName = initGrainFileName;
-			if (initPrevTimeStepDataFromCSVFile(initGrainFileName)){
-				prevDataInitialized = true;
-				grainNumberingBegin = prevData->maxGrainId() + 1 ;
-			} else {
-				std::cerr << "Failed to initialize from file \"" << initGrainFileName << "\" will continue with standard grain numbering."<< std::endl;
-			}
+	StopWatch watch;
+	watch.trigger();
+	std::string initCsvFileName;
+	int initFileNum = 0;
+	bool prevDataInitialized = false;
+	if( initGrainFileName != "") {
+		std::cout << "Initializing from grain data file \"" << initGrainFileName << "\" ." << std::endl;
+		initCsvFileName = initGrainFileName;
+		if (initPrevTimeStepDataFromCSVFile(initGrainFileName)){
+			prevDataInitialized = true;
+			grainNumberingBegin = prevData->maxGrainId() + 1 ;
+		} else {
+			std::cerr << "Failed to initialize from file \"" << initGrainFileName << "\" will continue with standard grain numbering."<< std::endl;
 		}
+	}
 
-		if (!prevDataInitialized){
-			if(initPrevTimeStepDataFromCSVFile(queue->outCsvFileName(0))){
-				initCsvFileName = queue->outCsvFileName(0);
-				prevDataInitialized = true;
-				initFileNum = 1;
-				grainNumberingBegin = prevData->getNumberOfGrains();
-			} else {
-				std::cerr << "Failed to initialize from file \"" << queue->outCsvFileName(0) << "\" will continue with standard grain numbering."<< std::endl;
-				std::cerr << "Exited " << std::endl;
-				return;
-			}
+	if (!prevDataInitialized){
+		if(initPrevTimeStepDataFromCSVFile(queue->outCsvFileName(0))){
+			initCsvFileName = queue->outCsvFileName(0);
+			prevDataInitialized = true;
+			initFileNum = 1;
+			grainNumberingBegin = prevData->getNumberOfGrains();
+		} else {
+			std::cerr << "Failed to initialize from file \"" << queue->outCsvFileName(0) << "\" will continue with standard grain numbering."<< std::endl;
+			std::cerr << "Exited " << std::endl;
+			return;
 		}
+	}
 
-		std::cout << "Tracking applied from file \""<< initCsvFileName <<"\" for " << queue->numFiles()-initFileNum <<" files "<< std::endl;
+	std::cout << "Tracking applied from file \""<< initCsvFileName <<"\" for " << queue->numFiles()-initFileNum <<" files "<< std::endl;
+
+	std::vector<GrainIDMapping> mappings;
+	std::vector<int> mappingFileNums;
+	//This for loop MUST be run serially!
+	for(int iF = initFileNum; iF < queue->numFiles(); iF++){
+		//read in the csv file
+		CSVTableReader curReader  (queue->outCsvFileName(iF),csvFormat.getNumHeaderLines());
+		curReader.parse();
+		if(!csvFormat.isRightFormat(&curReader)){
+			std::cout << "Exiting \"" << queue->outCsvFileName(iF) << "\" has wrong format" << std::endl;
+			continue;
+		}
+		//init curData object
+		curData = new ContainerData();
+		if(!csvFormat.init(&curReader, curData)){
+			delete curData;
+			curData = nullptr;
+			continue;
+		}
+		mapping = new GrainIDMapper(*material,prevData, curData);
+		mapping->init(maxCosHalfMisOri,maxVolFrac, grainNumberingBegin);
+		mapping->map();
+		calculateGrainDataChangeToInitial();
+		//first construct copies of that mapping stuff in order to start a task independently
+		mappings.push_back(mapping);
+		mappingFileNums.push_back(iF);
+		grainNumberingBegin = mapping->getNewGrainId();
+		delete mapping;
+		mapping = nullptr;
+		//for the next timestep(file) make curData available as prevData
+		delete prevData;
+		prevData = curData;
+		//make curData able to be deleted again
+		curData = nullptr;
+	}
+	watch.trigger();
+	int numFiles = mappings.size();
+	std::cout << "Tracking computation took " << watch.getString() << std::endl;
+	std::cout << "Modifying both csv and cfg files" << std::endl;
 
 //start a parallel team
-#pragma omp parallel default(none) shared(std::cout) firstprivate(csvFormat,initCsvFileName, prevDataInitialized, initFileNum)
-	#pragma omp single
+#pragma omp parallel default(none) shared(std::cout, mappings, mappingFileNums) firstprivate(numFiles)
 	{
-		//This for loop MUST be run serially!
-		for(int iF = initFileNum; iF < queue->numFiles(); iF++){
-			//read in the csv file
-			CSVTableReader curReader  (queue->outCsvFileName(iF),csvFormat.getNumHeaderLines());
-			curReader.parse();
-			if(!csvFormat.isRightFormat(&curReader)){
-				std::cout << "Exiting \"" << queue->outCsvFileName(iF) << "\" has wrong format" << std::endl;
-				continue;
-			}
-			//init curData object
-			curData = new ContainerData();
-			if(!csvFormat.init(&curReader, curData)){
-				delete curData;
-				curData = nullptr;
-				continue;
-			}
-			mapping = new GrainIDMapper(*material,prevData, curData);
-			mapping->init(maxCosHalfMisOri,maxVolFrac, grainNumberingBegin);
-			mapping->map();
-			calculateGrainDataChangeToInitial();
-			std::cout << "Modifying both csv and cfg files" << std::endl;
-//first construct copies of that mapping stuff in order to start a task independently
-			GrainIDMapping mappingData(mapping);
-//spawn file output tasks ! (slow operation)
-		#pragma omp task shared(std::cout) firstprivate(mappingData,iF) default(none)
-		{
-			std::cout << "Writing csv file \"" << queue->outCsvFileName(iF) << "\"" << std::endl;
-			CSVTableWriter csvWriter(queue->outCsvFileName(iF));
-			mappingData.print(&csvWriter);
+		#pragma omp for nowait
+		for(int i = 0; i < numFiles; i++){
+			std::cout << "Writing csv file \"" << queue->outCsvFileName(mappingFileNums[i]) << "\"" << std::endl;
+			CSVTableWriter csvWriter(queue->outCsvFileName(mappingFileNums[i]));
+			mappings[i].print(&csvWriter);
 			csvWriter.write();
 		}
+
+
 		if(editCfgFiles){
-			#pragma omp task shared(std::cout) firstprivate(mappingData,iF) default(none)
-			{
-				std::cout << "Editing cfg file \"" << queue->outCfgFileName(iF) << "\"" << std::endl;
-				CFGEditor editor(queue->outCfgFileName(iF));
-				mappingData.edit(&editor);
+
+			#pragma omp for nowait
+			for(int i = 0; i < numFiles; i++){
+				std::cout << "Editing cfg file \"" << queue->outCfgFileName(mappingFileNums[i]) << "\"" << std::endl;
+				CFGEditor editor(queue->outCfgFileName(mappingFileNums[i]));
+				mappings[i].edit(&editor);
 				editor.close();
 			}
-		}
-			grainNumberingBegin = mapping->getNewGrainId();
-			delete mapping;
-			mapping = nullptr;
-			//for the next timestep(file) make curData available as prevData
-			delete prevData;
-			prevData = curData;
-			//make curData able to be deleted again
-			curData = nullptr;
+
 		}
 	}
 }

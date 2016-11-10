@@ -26,19 +26,12 @@ FileImporter::FileImporter(std::string &inFilename, AtomContainer * inData, File
 FileImporter::~FileImporter() {
 }
 
-const char* TextReader::readLine(int maxSize)
+const char* TextReader::readLine()
 {
 	lineNumber++;
-	line.clear();
-	int size = getline(line,maxSize);
+	getline();
 	if( eof() ) throw EndOfFile();
-	return line.data();
-}
-
-const char* TextReader::readLineTrimLeft(int maxSize ) {
-	const char* s = readLine(maxSize);
-	while(*s != '\0' && (*s == ' ' || *s == '\t')) ++s;
-	return s;
+	return line_str.c_str();
 }
 
 bool TextReader::eof()
@@ -74,28 +67,13 @@ TextReader::~TextReader()
 
 std::string TextReader::lineString()
 {
-	std::string str;
-	for(int i = 0; i < line.size(); i++){
-		str += line[i];
-	}
-	return str;
+	return line_str;
 }
 
-int TextReader::getline(std::vector<char> & outLine, int maxNumChars)
+int TextReader::getline()
 {
-	std::string s;
-	std::getline(*fileStream,s);
-	int size;
-	if(maxNumChars > 0){
-		size = maxNumChars;
-		if(s.size() < maxNumChars) size = s.size();
-	} else {
-		size = s.size();
-	}
-	outLine.resize(size+1);
-	memcpy(outLine.data(), s.c_str(), size);
-	outLine.push_back('\0');
-	return size;
+	std::getline(*fileStream, line_str);
+	return line_str.length()+1;
 }
 
 

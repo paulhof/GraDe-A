@@ -32,6 +32,8 @@ public:
 	void calcTotalOrientationSpread(const Orientator * orient);
 	void calcRegularOrientationSpread(const Orientator * orient);
 	void calcOrphanOrientationSpread(const Orientator * orient);
+	void setProperties(const std::vector<double> & properties);
+	const std::vector<double>& getProperties() const;
 	void recalculateMeanOrientation();
 	double orientationSpread() const;
 	double cosHalfOrientationSpread() const;
@@ -51,6 +53,7 @@ public:
 private:
 	std::vector<Atom*> atoms;
 	std::vector<Atom*> orphanAtoms;
+	std::vector<double> meanProperties;
 	double center[DIM];
 	MeanOrientation meanOrient;
 	double oriSpread = 0., cosHalfOriSpread = 1.;//in rad

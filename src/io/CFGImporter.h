@@ -20,12 +20,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef CFG_FILE_IMPORTER_H
 #define CFG_FILE_IMPORTER_H
 
-#include "../io/FileImporter.h"
+#include "FileImporter.h"
+#include "CFGHeaderData.h"
 /**
  * \brief File parser for AtomEye CFG files.
  */
-
-
 class CFGImporter : public FileImporter
 {
 public:
@@ -38,9 +37,14 @@ public:
 	void readAtomPositions(int particleIndex, const char* s);
 	double parseField(int particleIndex, int columnIndex, const char* token, const char* token_end);
 private:
+	void skipExtendedLines();
+	void readAtom();
+	std::vector<std::string> curAtomData;
+	long curAtomNum = -1;
 	Matrix3 transform;
 	double translate[3];
 	double * atomPositions = nullptr;
+	CFGHeaderData header;
 };
 
 #endif // CFG_FILE_IMPORTER_H

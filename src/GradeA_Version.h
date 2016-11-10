@@ -20,12 +20,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define ORIENTATORVERSION_H_
 #include <string>
 #define MAJOR_VERSION 1
-#define MINOR_VERSION 0
+#define MINOR_VERSION 1
 #define BUILD_NUMBER 0
 
 //
 // Version History:
 //
+//   1.1.0:
+//     - additional properties from input cfg-file are taken into account for output
+//     - added support for eigen library (use armadillo instead by "cmake -DUSE_ARMADILLO=TRUE")
+//     - added support for visual studio compilers
 //   1.0.0: First runnable version:
 //     - atom wise orientation calculation
 //     - grain identification

@@ -102,7 +102,7 @@ void GrainIDMapper::edit(CFGEditor * editor) {
 	int grainIDField = -1;
 	//find out the column of the grain id
 	for(int iAux = 0; iAux < editor->getNumAuxFields(); iAux++){
-		if(editor->getAuxName(iAux) == "gId"){
+		if(editor->getAuxName(iAux) == GRAIN_ID_NAME){
 			grainIDField = iAux;
 		}
 	}
@@ -208,7 +208,7 @@ void GrainIDMapping::edit(CFGEditor * editor) {
 	int grainIDField = -1;
 	//find out the column of the grain id
 	for(int iAux = 0; iAux < editor->getNumAuxFields(); iAux++){
-		if(editor->getAuxName(iAux) == "gId"){
+		if(editor->getAuxName(iAux) == GRAIN_ID_NAME){
 			grainIDField = iAux;
 		}
 	}

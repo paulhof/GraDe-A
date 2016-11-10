@@ -3,59 +3,69 @@
 
 Installation:
 This software uses CMake for Makefile-generation.
-This software depends on C++11, OpenMP, armadillo, lapack and blas.
+This software depends on C++11, OpenMP and either Eigen or Armadillo.
+GraDe-A uses the header-only Eigen library by default.
+If building with Armadillo, the Blas and Lapack libraries are required.
 The installation procedure should generate an executable file in ./build/.
+
+-------------------------
+Using Eigen library:
+-------------------------
+
+Under Linux:
+Open a terminal in the GraDe-A root directory.
+cd ./build/
+cmake ..
+make
+
+Under Windows/MSYS or Cygwin:
+Open a terminal in the GraDe-A root directory.
+cd ./build/
+cmake .. -G"MSYS Makefiles"
+make
+
+Under Windows/Visual Studio:
+Open Visual Studio Development Console in the GraDe-A root directory.
+cd .\build\
+cmake .. -G"NMake Makefiles" -DCMAKE_BUILD_TYPE=Release
+nmake
 
 One can specify a custom build-type by attaching -DCMAKE_BUILD_TYPE=build_type to the cmake-command. 
 E.g. for a Debug build:
 -DCMAKE_BUILD_TYPE=Debug
 
-Under Linux:
-lapack and blas libraries need to be installed.
+-------------------------
+Using Armadillo library:
+-------------------------
+
+In order to compile with the Armadillo library install or build the Armadillo library and
+add -DUSE_ARMADILLO=True to the cmake-command.
+
+E.g. for Linux do:
 cd ./build/
-cmake ..
+cmake .. -DUSE_ARMADILLO=True
 make
 
-If armadillo is not installed, download from http://arma.sourceforge.net/download.html and extract files into ./armadillo/.
-Inside this directory do:
+To build armadillo from source do the following:
+
+Inside ./armadillo/ do:
+
+Under Linux:
 cmake .
 make
 
-Then try building GraDe-A again.
+For Linux the Lapack and Blas libraries must be installed.
+E.g. for Ubuntu they are installed alongside the Armadillo installation by:
+sudo apt-get install libarmadillo-dev
 
-Under Windows:
-The software has been tested under both MSYS with TDM-GCC-64 and Cygwin32.
-Prebuilt lapack and blas libraries must be avaiable in ./lib/.
-No support for Visual Studio compilers.
-
-After installation copy the dependent .dll files from ./lib/ in the same folder where the executable is used.
-
-MSYS:
-Install CMake for Windows and make it available under the PATH variable.
-Make sure a C++ compiler with OpenMP-support is available under MSYS (e.g. TDM-GCC-64).
-
-Download armadillo from  http://arma.sourceforge.net/download.html and extract files into ./armadillo/.
-64bit: Copy blas_win64_MT.dll and lapack_win64_MT.dll files from ./armadillo/examples/lib_win64/ into ./lib/
-32bit: Download 32bit liblapack.dll and libblas.dll from https://icl.cs.utk.edu/lapack-for-windows/lapack/ (Mingw section) into ./lib/
-
-Inside ./armadillo/ do:
+Under Windows/MSYS or Cygwin:
 cmake . -G"MSYS Makefiles"
 make
 
-From GraDe-A root do:
-cd ./build/
-cmake .. -G"MSYS Makefiles"
-make
+Under Windows/Visual Studio:
+cmake . -G"NMake Makefiles"
+nmake
 
-Cygwin32:
-Install Cygwin32 with CMake and OpenMP-support.
-Download 32bit liblapack.dll and libblas.dll from https://icl.cs.utk.edu/lapack-for-windows/lapack/ (Mingw section) into ./lib/
-Download armadillo from  http://arma.sourceforge.net/download.html and extract files into ./armadillo/.
-Inside this directory do:
-cmake .
-make
-
-From GraDe-A root do:
-cd ./build/
-cmake ..
-make
+For Windows copy the correct Blas and Lapack library files into ./lib/.
+64bit: Copy all files from ./armadillo/examples/lib_win64/ into ./lib/
+32bit: Download liblapack.dll and libblas.dll from https://icl.cs.utk.edu/lapack-for-windows/lapack/ (Mingw section) into ./lib/
